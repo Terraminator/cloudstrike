@@ -23,37 +23,37 @@ HOME="/home/user/cloudstrike/" #needs to end with a '/' !!!
 
 You can leave the C2_WEB_PORT and C2_PORT the same as the c2 distinguishes between traffic with the web server and clients.
 
-You can access the web server at "C2_ADDR:C2_WEB_PORT/{magic}/some file". You can get the current magic string from the cloudstrike command "magic".
+You can access the web server at `C2_ADDR:C2_WEB_PORT/{magic}/some file`. You can get the current magic string from the cloudstrike command `magic`.
 
 #### Available Functions
-- use <id> : if you have connected clients you can use this to drop into the shell
-- list/ps : list current connected clients
-- delete/kill <id> : kill connection to client
-- connect <ip> <port> : connnect to bind shell
-- listen <port> : add an additional C2 PORT to listen for clients
-- forward local_port:dest:dest_port : forward local port to remote service
-- routes : keeps track of your forwards and displays the current port forwardings you are doing
-- restart web : restart the web server (may not work as this was intended only if you want to start the webserver after the webserver didn't start initially)
-- read_weblog : read flask web log
-- magic : display current magic string
-- clear : clear screen
-- broadcast <command> : send command to all clients at the same time
-- exit
+- `use <id>` : if you have connected clients you can use this to drop into the shell
+- `list/ps` : list current connected clients
+- `delete/kill <id>` : kill connection to client
+- `connect <ip> <port>` : connnect to bind shell
+- `listen <port>` : add an additional C2 PORT to listen for clients
+- `forward local_port:dest:dest_port` : forward local port to remote service
+- `routes` : keeps track of your forwards and displays the current port forwardings you are doing
+- `restart web` : restart the web server (may not work as this was intended only if you want to start the webserver after the webserver didn't start initially)
+- `read_weblog` : read flask web log
+- `magic` : display current magic string
+- `clear` : clear screen
+- `broadcast <command>` : send command to all clients at the same time
+- `exit`
 
 ### Beacon
-The Beacon supports an encoded channel with xor (NO this is not secure but it can obfuscate the traffic) and a plain channel. You can configure this in "es2.h".
+The Beacon supports an encoded channel with xor (NO this is not secure but it can obfuscate the traffic) and a plain channel. You can configure this in `es2.h`.
 
 #### Available Functions
-- implant: execute persistence mechanism specific to the operating system
-- upload: upload file (binary files currently only partially supported and only works in combination to cloudstrike)
-- download: download file(binary files currently only partially supported and only works in combination to cloudstrike)
-- destroy: destroys the machines files
-- panic: removes itself quietly from the system(only for windows as it is easy for linux to do it manually)
-- pyinstall: installs python on the target(windows only because for linux python is most of the time preinstalled)
-- passdump: dumps creds (see the tip in the code to see how to use mimikatz to get the creds from the dump and this is really noisy and will propably be detected by an av)
-- crash: crashes system with a fork bomb
-- exit
-- help
+- `implant`: execute persistence mechanism specific to the operating system
+- `upload`: upload file (binary files currently only partially supported and only works in combination to cloudstrike)
+- `download`: download file(binary files currently only partially supported and only works in combination to cloudstrike)
+- `destroy`: destroys the machines files
+- `panic`: removes itself quietly from the system(only for windows as it is easy for linux to do it manually)
+- `pyinstall`: installs python on the target(windows only because for linux python is most of the time preinstalled)
+- `passdump`: dumps creds (see the tip in the code to see how to use mimikatz to get the creds from the dump and this is really noisy and will propably be detected by an av)
+- `crash`: crashes system with a fork bomb
+- `exit`
+- `help`
 
 ## Building
 
@@ -66,6 +66,7 @@ For some features, you need to put the following files into the static folder:
 - For PwnKit: [CVE-2021-4034.py](https://raw.githubusercontent.com/joeammond/CVE-2021-4034/main/CVE-2021-4034.py) and rename it to `PwnKite.py`.
 - You can download Procdump from [here](https://learn.microsoft.com/de-de/sysinternals/downloads/procdump) and rename it to `procdump.exe`.
 - Go ahead and download Nyancat for Linux from [here](https://github.com/klange/nyancat/tree/master) and name it `nyancat`.
+- Just grab a windows python installer executable for windows from here: [here](https://www.python.org/downloads/release/python-385/) you can also use another version but the you need to change the name in `main.c` from `python-3.8.5.exe` to your executable filename
 
 ## Contribution
 
