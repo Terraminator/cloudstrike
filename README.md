@@ -15,11 +15,17 @@ I created this framework to learn a bit about malware developments and command a
 
 ## Features
 ### C2
-You need to configure the following constants in cloudstrike.py
-C2_ADDR="0.0.0.0"
-C2_PORT=1337
-C2_WEB_PORT=1337
-HOME="/home/user/cloudstrike/" #needs to end with a '/' !!!
+
+To install the requirements:
+<pre>pip install -r requirements.txt</pre>
+
+The C2 also has a fallback to the default http.server module instead of flask if you can't install flask and you can also disable it by setting `FLASK`=False in `cloudstrike.py` but this will make the beacon fail to download files from the webserver so you would need to change some lines in main.c. Feel free to advance the fallback so the beacon automatically chooses from where to download and contribute the changes!  
+
+You also need to configure the following constants in `cloudstrike.py`  
+`C2_ADDR`="0.0.0.0"  
+`C2_PORT`=1337  
+`C2_WEB_PORT`=1337  
+`HOME`="/home/user/cloudstrike/" #needs to end with a '/' !!!
 
 You can leave the C2_WEB_PORT and C2_PORT the same as the c2 distinguishes between traffic with the web server and clients.
 
@@ -66,13 +72,13 @@ For some features, you need to put the following files into the static folder:
 - For PwnKit: [CVE-2021-4034.py](https://raw.githubusercontent.com/joeammond/CVE-2021-4034/main/CVE-2021-4034.py) and rename it to `PwnKite.py`.
 - You can download Procdump from [here](https://learn.microsoft.com/de-de/sysinternals/downloads/procdump) and rename it to `procdump.exe`.
 - Go ahead and download Nyancat for Linux from [here](https://github.com/klange/nyancat/tree/master) and name it `nyancat`.
-- Just grab a windows python installer executable for windows from here: [here](https://www.python.org/downloads/release/python-385/) you can also use another version but the you need to change the name in `main.c` from `python-3.8.5.exe` to your executable filename
+- Just grab a windows python installer executable for windows from here: [here](https://www.python.org/downloads/release/python-385/) you can also use another version but then you need to change the name in `main.c` from `python-3.8.5.exe` to your executable filename
 
 ## Contribution
 
 Feel free to contribute!
 
-If you look at the top of the files, these are some of the features I would like to implement someday. As I developed this in my free time, this software also has some other trolling features, but I removed them as they are not too helpful in CTFs and I just played around a little. So if you want some weird trolling features, feel free to ask, and I can add them into a separate version.
+If you look at the top of the files, there are some of the features I would like to implement someday. As I developed this in my free time, this software also has some other trolling features, but I removed them as they are not too helpful in CTFs and I just played around a little. So if you want some weird trolling features, feel free to ask, and I can add them into a separate version.
 
 ## Disclaimer
 
