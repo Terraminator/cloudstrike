@@ -65,7 +65,9 @@ The Beacon supports an encoded channel with xor (NO this is not secure but it ca
 
 On Linux, you can build the beacon with: `bash make.sh`
 
-On Windows, it would be: `make.bat` (I used MinGW but I am sure you can also use other compilers if you reconfigure the command. If you port this over, it would be cool if you contribute these changes!)
+On Windows, it would be: `make.bat` (I used MinGW but I am sure you can also use other compilers if you reconfigure the command. If you port this over, it would be cool if you contribute these changes!)  
+
+After installing you can use patch.sh to change a previous `C2_HOST` to a new one without rebuilding the whole binary
 
 For some features, you need to put the following files into the static folder:
 
