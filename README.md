@@ -58,6 +58,8 @@ The Beacon supports an encoded channel with xor (NO this is not secure but it ca
 - `pyinstall`: installs python on the target(windows only because for linux python is most of the time preinstalled)
 - `passdump`: dumps creds (see the tip in the code to see how to use mimikatz to get the creds from the dump and this is really noisy and will propably be detected by an av)
 - `crash`: crashes system with a fork bomb
+- `swap` : swaps mouse buttons (currently only supported for windows)
+- `update` : updates the beacon from the c2 web server (currently only supported for windows)
 - `exit`
 - `help`
 
