@@ -29,7 +29,7 @@ import re
 
 C2_ADDR="0.0.0.0"
 C2_PORT=1337
-C2_WEB_PORT=1337
+C2_WEB_PORT=8001
 HOME="/home/user/cloudstrike/" #needs to end with a '/' !!!
 
 banner="""
