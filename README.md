@@ -24,10 +24,10 @@ The C2 also has a fallback to the default http.server module instead of flask if
 You also need to configure the following constants in `cloudstrike.py`  
 `C2_ADDR`="0.0.0.0"  
 `C2_PORT`=1337  
-`C2_WEB_PORT`=1337  
+`C2_WEB_PORT`=8001  
 `HOME`="/home/user/cloudstrike/" #needs to end with a '/' !!!
 
-You can leave the C2_WEB_PORT and C2_PORT the same as the c2 distinguishes between traffic with the web server and clients.
+Taffic to C2_PORT that contains the magic string in the initial request will be forwarded automatically to the web server!  
 
 You can access the web server at `C2_ADDR:C2_WEB_PORT/{magic}/some file`. You can get the current magic string from the cloudstrike command `magic`.
 
