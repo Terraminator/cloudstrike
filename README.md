@@ -2,16 +2,16 @@
 This is a custom c2 framework with beacons for both linux and windows
 
 <pre>
-  ______  __        ______    __    __   _______       _______.___________..______       __   __  ___  _______ 
+  ______  __        ______    __    __   _______       _______.___________..______       __   __  ___  _______
  /      ||  |      /  __  \  |  |  |  | |       \     /       |           ||   _  \     |  | |  |/  / |   ____|
-|  ,----'|  |     |  |  |  | |  |  |  | |  .--.  |   |   (----`---|  |----`|  |_)  |    |  | |  '  /  |  |__   
-|  |     |  |     |  |  |  | |  |  |  | |  |  |  |    \   \       |  |     |      /     |  | |    <   |   __|  
-|  `----.|  `----.|  `--'  | |  `--'  | |  '--'  |.----)   |      |  |     |  |\  \----.|  | |  .  \  |  |____ 
+|  ,----'|  |     |  |  |  | |  |  |  | |  .--.  |   |   (----`---|  |----`|  |_)  |    |  | |  '  /  |  |__
+|  |     |  |     |  |  |  | |  |  |  | |  |  |  |    \   \       |  |     |      /     |  | |    <   |   __|
+|  `----.|  `----.|  `--'  | |  `--'  | |  '--'  |.----)   |      |  |     |  |\  \----.|  | |  .  \  |  |____
  \______||_______| \______/   \______/  |_______/ |_______/       |__|     | _| `._____||__| |__|\__\ |_______|
 
 </pre>
 
-I created this framework to learn a bit about malware developments and command and control servers. As this is (at the time of release) not detected by some antivirus software like Windows Defender, you can also see that it is not too hard to write malware that goes undetected even though I didn't even obfuscate too much. Obviously, the beacons will probably still be detected by an antivirus with good dynamic detection, so this malware is not something harmful. BUT you can use this as a base for lateral movement in CTFs to manage your machines.
+I created this framework to learn a bit about malware developments and command and control servers. As this is (at the time of release) not detected by some antivirus software like Windows Defender, you can also see that it is not too hard to write malware that goes undetected even though I didn't even obfuscate too much and this is just a toy project. Obviously, the beacon will probably still be detected by an antivirus with good dynamic detection, so this malware is not too dangerous. BUT you can use this as a base for lateral movement in CTFs to manage your machines.
 
 ## Features
 ### C2
@@ -19,18 +19,19 @@ I created this framework to learn a bit about malware developments and command a
 To install the requirements:
 <pre>pip install -r requirements.txt</pre>
 
-The C2 also has a fallback to the default http.server module instead of flask if you can't install flask and you can also disable it by setting `FLASK`=False in `cloudstrike.py` but this will make the beacon fail to download files from the webserver so you would need to change some lines in main.c. Feel free to advance the fallback so the beacon automatically chooses from where to download and contribute the changes!  
+The C2 also has a fallback to the default http.server module instead of flask if you can't install flask and you can also disable it by setting `FLASK`=False in `cloudstrike.py` but this will make the beacon fail to download files from the webserver so you would need to change some lines in main.c. Feel free to advance the fallback so the beacon automatically chooses from where to download and contribute the changes!
 
-You also need to configure the following constants in `cloudstrike.py`  
-`C2_ADDR`="0.0.0.0"  
-`C2_PORT`=1337  
-`C2_WEB_PORT`=8001  
-`HOME`="/home/user/cloudstrike/" #needs to end with a '/' !!!
+You also need to configure the following constants in `cloudstrike.py`
+`C2_ADDR` = "0.0.0.0"
+`C2_PORT`= 1337
+`C2_WEB_PORT`= 1337
+`HOME` = "/home/user/cloudstrike/" #needs to end with a '/' !!!
 
-Taffic to C2_PORT that contains the magic string in the initial request will be forwarded automatically to the web server!  
+Taffic to `C2_PORT` that contains the magic string in the initial request will be forwarded automatically to the web server!
+So you can put the `C2_WEB_PORT` in `cloudtrike.py` behind a firewall and only have to open `C2_PORT` on the c2 server to the internet.
 
-You can access the web server at `C2_ADDR:C2_WEB_PORT/{magic}/some_file`. You can get the current magic string from the cloudstrike command `magic`.  
-The flask web server will also respond with a status code of 404 to every request (even if the file is found) and returns a string of random length when no file is found to confuse fuzzers.  
+You can access the web server at `C2_ADDR:C2_WEB_PORT/{magic}/some_file`. You can get the current magic string from the cloudstrike command `magic`.
+The flask web server will also respond with a status code of 404 to every request (even if the file is found) and returns a string of random length when no file is found to confuse fuzzers.
 (This also means wget C2_ADDR:C2_WEB_PORT/{magic}/some_file won't work because wget reacts to the 404 status code. Instead use curl -O C2_ADDR:C2_WEB_PORT/{magic}/some_file)
 
 #### Available Functions
@@ -40,8 +41,8 @@ The flask web server will also respond with a status code of 404 to every reques
 - `connect <ip> <port>` : connnect to bind shell
 - `listen <port>` : add an additional C2 PORT to listen for clients
 - `forward local_port:dest:dest_port` : forward local port to remote service
-- `routes` : keeps track of your forwards and displays the current port forwardings you are doing
-- `restart web` : restart the web server (may not work as this was intended only if you want to start the webserver after the webserver didn't start initially)
+- `routes` : list of your port forwards
+- `restart web` : restart the web server (intended to be used only when you want to start the webserver after the webserver didn't start initially)
 - `read_weblog` : read flask web log
 - `magic` : display current magic string
 - `clear` : clear screen
@@ -69,7 +70,7 @@ The Beacon supports an encoded channel with xor (NO this is not secure but it ca
 
 On Linux, you can build the beacon with: `bash make.sh`
 
-On Windows, it would be: `make.bat` (I used MinGW but I am sure you can also use other compilers if you reconfigure the command. If you port this over, it would be cool if you contribute these changes!)  
+On Windows, it would be: `make.bat` (I used MinGW but I am sure you can also use other compilers if you reconfigure the command. If you port this over, it would be cool if you contribute these changes!)
 
 After installing you can use patch.sh to change a previous `C2_HOST` to a new one without rebuilding the whole binary
 
@@ -84,7 +85,7 @@ For some features, you need to put the following files into the static folder:
 
 Feel free to contribute!
 
-If you look at the top of the files, there are some of the features I would like to implement someday. As I developed this in my free time, this software also has some other trolling features, but I removed them as they are not too helpful in CTFs and I just played around a little. So if you want some weird trolling features, feel free to ask, and I can add them into a separate version.
+If you look at the top of the files, there are some of the features I would like to implement someday.
 
 ## Disclaimer
 

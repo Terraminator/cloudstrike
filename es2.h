@@ -25,10 +25,9 @@ extern "C" {
 		int buf_sz;
 	} response;
 
-	extern struct sockaddr_in server, host, client;
+	extern struct sockaddr_in server;
 	extern WSADATA wsaData;
-	extern SOCKET ss, conns, cs;
-	extern char rep[10000];
+	extern SOCKET cs;
 	extern int alive_;
 
 	typedef struct c_i {
@@ -38,12 +37,9 @@ extern "C" {
 
 	int es_init();
 	BOOL alive();
-	int es_bind(int port);
-	int es_listen(int nc);
-	i_tup es_accept();
 	int es_connect(const char* ip, int port);
-	int es_send(const char* msg, int mode);
-	response es_recv(int rcv_s, int mode, int timeout);
+	int es_send(const char* msg);
+	response es_recv(int rcv_s);
 	int es_cleanup();
 
 
