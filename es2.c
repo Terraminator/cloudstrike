@@ -65,7 +65,6 @@ void* realloc_zero(void* pBuffer, size_t oldSize, size_t newSize) {
 }
 
 response es_recv(int rcv_s) {
-	puts("es_recv called!\n");
 	int rcv_r = 0;
 	char *rep= malloc(rcv_s);
 	if (rep != NULL) {
@@ -136,14 +135,12 @@ response es_recv(int rcv_s) {
 		alive_ = 0;
 		response err={"Failed to receive data (connection closed)!\n", strlen("Failed to receive data (connection closed)!\n")};
 		return(err);
-	}
-	puts("es_recv returning...\n");
-	rep[buf_sz] = '\0';
-	response r;
-	r.data=rep;
-	r.buf_sz=buf_sz;
-	puts("response struct filled!\nes_recv returning!\n");
-	return(r);
+
+		rep[buf_sz] = '\0';
+		response r;
+		r.data=rep;
+		r.buf_sz=buf_sz;
+		return(r);
 }
 
 int es_cleanup() {

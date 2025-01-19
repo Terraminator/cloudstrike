@@ -36,6 +36,7 @@ extern "C" {
 	} i_tup;
 
 	int es_init();
+	void* realloc_zero(void* pBuffer, size_t oldSize, size_t newSize);
 	BOOL alive();
 	int es_connect(const char* ip, int port);
 	int es_send(const char* msg);

